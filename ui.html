@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+
+<style>
+body {
+    background: #020617;
+    color: #38bdf8;
+    font-family: monospace;
+}
+
+#chat {
+    height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.msg {
+    margin: 10px;
+    padding: 12px;
+    border-radius: 10px;
+    max-width: 60%;
+}
+
+.user {
+    background: #2563eb;
+    margin-left: auto;
+    text-align: right;
+}
+
+.jarvis {
+    background: #0f172a;
+}
+
+#bottom {
+    position: fixed;
+    bottom: 10px;
+    width: 100%;
+}
+
+input {
+    width: 70%;
+    padding: 10px;
+}
+
+button {
+    padding: 10px;
+    background: #38bdf8;
+}
+</style>
+</head>
+
+<body>
+
+<div id="chat"></div>
+
+<div id="bottom">
+<input id="input" placeholder="Command..." />
+<button onclick="send()">Send</button>
+</div>
+
+<script>
+let backend;
+
+new QWebChannel(qt.webChannelTransport, function(channel) {
+    backend = channel.objects.backend;
+});
+
+function addMessage(text, sender){
+    let div = document.createElement("div");
+    div.className = "msg " + sender;
+    div.innerText = text;
+    document.getElementById("chat").appendChild(div);
+    window.scrollTo(0, document.body.scrollHeight);
+}
+
+function send(){
+    let input = document.getElementById("input");
+    let text = input.value;
+
+    if (!text) return;
+
+    addMessage(text, "user");
+    backend.process(text);
+
+    input.value = "";
+}
+</script>
+
+</body>
+</html>
