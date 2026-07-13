@@ -2,21 +2,50 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=".env")
+"""
+brain.py — On-device AI reasoning via Ollama.
+Replaces the old cloud-based Groq client. All inference runs locally
+against a model pulled with ollama pull <MODEL>.
+"""
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+import requests
 
-chat_history = []
+OLLAMA_URL = "http://localhost:11434/api/chat"
+MODEL = "qwen2.5:3b" # swap for qwen2.5:0.5b or smollm2 if this is too slow on your hardware
 
-def ask_ai(prompt):
-    chat_history.append({"role": "user", "content": prompt})
+SYSTEM_PROMPT = {
+"role": "system",
+"content": "You are JARVIS, a concise, helpful local AI assistant. Keep answers short unless asked for detail."
+}
 
-    chat = client.chat.completions.create(
-        messages=chat_history[-10:],  # limit memory
-        model="openai/gpt-oss-120b"
+chat_history = [SYSTEM_PROMPT]
+
+def ask_ai(prompt: str) -> str:
+chat_history.append({"role": "user", "content": prompt})
+
+try:
+    response = requests.post(
+        OLLAMA_URL,
+        json={
+            "model": MODEL,
+            "messages": chat_history[-11:],  # system + last 10 turns
+            "stream": False,
+        },
+        timeout=60,
     )
+    response.raise_for_status()
+except requests.exceptions.ConnectionError:
+    return (
+        "I can't reach the local Ollama server. "
+        "Make sure it's running: `ollama serve`."
+    )
+except requests.exceptions.RequestException as e:
+    return f"Local model call failed: {e}"
 
-    reply = chat.choices[0].message.content
-    chat_history.append({"role": "assistant", "content": reply})
+reply = response.json()["message"]["content"]
+chat_history.append({"role": "assistant", "content": reply})
 
-    return reply
+return reply
+def reset_history():
+global chat_history
+chat_history = [SYSTEM_PROMPT]
